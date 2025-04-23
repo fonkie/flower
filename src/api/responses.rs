@@ -13,20 +13,20 @@ pub struct RootResponse {
 
 #[derive(Serialize)]
 pub struct Post {
-    pub id: i32,
+    pub id: u64,
     pub post_title: String,
     pub post_content: String,
     pub post_excerpt: String,
     pub post_status: String,
     pub post_type: String,
-    pub post_author: i32,
+    pub post_author: u64,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub post_date: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub post_modified: DateTime<Utc>,
     pub guid: String,
     pub post_name: String,
-    pub comment_count: i32,
+    pub comment_count: i64,
 }
 
 impl From<post::Model> for Post {
@@ -39,8 +39,14 @@ impl From<post::Model> for Post {
             post_status: model.post_status,
             post_type: model.post_type,
             post_author: model.post_author,
-            post_date: DateTime::<Utc>::from_naive_utc_and_offset(model.post_date, Utc),
-            post_modified: DateTime::<Utc>::from_naive_utc_and_offset(model.post_modified, Utc),
+            post_date: DateTime::<Utc>::from_naive_utc_and_offset(
+                model.post_date.unwrap(),
+                Utc,
+            ),
+            post_modified: DateTime::<Utc>::from_naive_utc_and_offset(
+                model.post_modified.unwrap(),
+                Utc,
+            ),
             guid: model.guid,
             post_name: model.post_name,
             comment_count: model.comment_count,

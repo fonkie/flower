@@ -39,9 +39,7 @@ impl Related<super::term_relationship::Entity> for Entity {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-// Additional query methods
 impl Entity {
-    // Get categories with pagination
     pub async fn find_categories(
         db: &DatabaseConnection,
         page: u64,
@@ -52,22 +50,24 @@ impl Entity {
             .find_with_related(super::term::Entity)
             .all(db)
             .await?;
-        
-        // Extract and flatten results
+
         let mut results = Vec::new();
         for (taxonomy, terms) in query {
             if let Some(term) = terms.first() {
                 results.push((taxonomy, term.clone()));
             }
         }
-        
-        // Apply pagination manually
+
         let total = results.len() as u64;
         let start = (page - 1) * page_size;
         let end = std::cmp::min(start + page_size, total);
-        
+
         if start < total {
-            let paginated_results = results.into_iter().skip(start as usize).take((end - start) as usize).collect();
+            let paginated_results = results
+                .into_iter()
+                .skip(start as usize)
+                .take((end - start) as usize)
+                .collect();
             Ok((paginated_results, total))
         } else {
             Ok((Vec::new(), total))

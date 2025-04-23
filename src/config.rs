@@ -5,7 +5,6 @@ use std::env;
 pub struct Config {
     pub database: DatabaseConfig,
     pub server: ServerConfig,
-    pub cors: CorsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -19,10 +18,6 @@ pub struct ServerConfig {
     pub port: u16,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct CorsConfig {
-    pub allowed_origin: String,
-}
 
 impl Config {
     pub fn from_env() -> Result<Self, env::VarError> {
@@ -38,14 +33,9 @@ impl Config {
                 .expect("Invalid SERVER_PORT value"),
         };
         
-        let cors = CorsConfig {
-            allowed_origin: env::var("CORS_ALLOWED_ORIGIN").unwrap_or_else(|_| String::from("*")),
-        };
-        
         Ok(Config {
             database,
             server,
-            cors,
         })
     }
 }

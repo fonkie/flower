@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub meta_id: i32,
-    pub post_id: i32,
+    pub post_id: u64,
     pub meta_key: String,
     pub meta_value: String,
 }
@@ -29,30 +29,27 @@ impl Related<super::post::Entity> for Entity {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-// Additional query methods
 impl Entity {
-    // Get post metadata by post ID
     pub async fn find_by_post_id(
         db: &DatabaseConnection,
-        post_id: i32,
+        post_id: u64,
     ) -> Result<Vec<Model>, DbErr> {
         Self::find()
             .filter(Column::PostId.eq(post_id))
             .all(db)
             .await
     }
-    
-    // Get metadata as a key-value map
+
     pub async fn find_metadata_map(
         db: &DatabaseConnection,
-        post_id: i32,
+        post_id: u64,
     ) -> Result<std::collections::HashMap<String, String>, DbErr> {
         let metadata = Self::find_by_post_id(db, post_id).await?;
         let map = metadata
             .into_iter()
             .map(|meta| (meta.meta_key, meta.meta_value))
             .collect();
-        
+
         Ok(map)
     }
 }
