@@ -99,11 +99,11 @@ pub struct PostMeta {
 
 #[derive(Serialize)]
 pub struct Category {
-    pub term_id: i32,
+    pub term_id: u64,
     pub name: String,
     pub slug: String,
     pub description: String,
-    pub parent: i32,
+    pub parent: u64,
     pub count: i32,
 }
 

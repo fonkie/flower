@@ -182,6 +182,14 @@ pub async fn get_posts_by_type(
         }
     }
 
+    if let Some(search_term) = &query.search {
+        if search_term.chars().count() < 3 {
+            return Err(ApiError::BadRequest(
+                "Search term must be at least 3 characters long".to_string(),
+            ));
+        }
+    }
+
     let post_status = if let Some(status) = &query.post_status {
         let valid_statuses = [
             "publish",
@@ -206,9 +214,10 @@ pub async fn get_posts_by_type(
 
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(10).min(100);
+    let search = query.search.clone();
 
     let (posts, total) =
-        queries::get_posts_by_type(&db, &post_type, post_status, page, page_size).await?;
+        queries::get_posts_by_type(&db, &post_type, post_status, page, page_size, search).await?;
 
     let post_responses: Vec<Post> = posts.into_iter().map(Post::from).collect();
 
@@ -284,10 +293,20 @@ pub async fn get_posts_by_category(
         }
     }
 
+    if let Some(search_term) = &query.search {
+        if search_term.chars().count() < 3 {
+            return Err(ApiError::BadRequest(
+                "Search term must be at least 3 characters long".to_string(),
+            ));
+        }
+    }
+
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(10).min(100);
+    let search = query.search.clone();
 
-    let (posts, total) = queries::get_posts_by_category(&db, category_id, page, page_size).await?;
+    let (posts, total) =
+        queries::get_posts_by_category(&db, category_id, page, page_size, search).await?;
 
     let post_responses: Vec<Post> = posts.into_iter().map(Post::from).collect();
 
@@ -311,6 +330,7 @@ pub struct GetPostsTypeQuery {
     pub post_status: Option<String>,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
+    pub search: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -323,4 +343,5 @@ pub struct GetCategoriesQuery {
 pub struct GetPostsCategoryQuery {
     pub page: Option<u64>,
     pub page_size: Option<u64>,
+    pub search: Option<String>,
 }

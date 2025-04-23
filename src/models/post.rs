@@ -110,11 +110,20 @@ impl Entity {
         post_status: Option<&str>,
         page: u64,
         page_size: u64,
+        search: Option<String>,
     ) -> Result<(Vec<Model>, u64), DbErr> {
         let mut query = Self::find().filter(Column::PostType.eq(post_type));
 
         if let Some(status) = post_status {
             query = query.filter(Column::PostStatus.eq(status));
+        }
+
+        if let Some(search_term) = search {
+            query = query.filter(
+                Condition::any()
+                    .add(Column::PostTitle.contains(&search_term))
+                    .add(Column::PostContent.contains(&search_term)),
+            );
         }
 
         let total = query.clone().count(db).await?;
@@ -129,19 +138,33 @@ impl Entity {
     }
 
     pub async fn get_post_types(db: &DatabaseConnection) -> Result<Vec<(String, i64, i64)>, DbErr> {
-        let result = Self::find()
-            .select()
+        let post_types = Self::find()
+            .select_only()
             .column(Column::PostType)
-            .column_as(Expr::count(Expr::col(Column::Id)), "count")
-            .column_as(
-                Expr::cust("SUM(IF(post_status = 'publish', 1, 0))"),
-                "published_count",
-            )
-            .group_by(Column::PostType)
-            .order_by(Expr::cust("count"), Order::Desc)
-            .into_tuple::<(String, i64, i64)>()
+            .distinct()
+            .order_by(Column::PostType, Order::Asc)
+            .into_tuple::<String>()
             .all(db)
             .await?;
+
+        let mut result = Vec::new();
+
+        for post_type in post_types {
+            let total_count = Self::find()
+                .filter(Column::PostType.eq(&post_type))
+                .count(db)
+                .await?;
+
+            let published_count = Self::find()
+                .filter(Column::PostType.eq(&post_type))
+                .filter(Column::PostStatus.eq("publish"))
+                .count(db)
+                .await?;
+
+            result.push((post_type, total_count as i64, published_count as i64));
+        }
+
+        result.sort_by(|a, b| b.1.cmp(&a.1));
 
         Ok(result)
     }
@@ -151,13 +174,14 @@ impl Entity {
         category_id: i32,
         page: u64,
         page_size: u64,
+        search: Option<String>,
     ) -> Result<(Vec<Model>, u64), DbErr> {
         let term_taxonomy_id = super::term_taxonomy::Entity::find()
             .filter(super::term_taxonomy::Column::TermId.eq(category_id))
             .filter(super::term_taxonomy::Column::Taxonomy.eq("category"))
             .select()
             .column(super::term_taxonomy::Column::TermTaxonomyId)
-            .into_tuple::<i32>()
+            .into_tuple::<u64>()
             .one(db)
             .await?;
 
@@ -174,9 +198,17 @@ impl Entity {
                 return Ok((Vec::new(), 0));
             }
 
-            let query = Self::find()
+            let mut query = Self::find()
                 .filter(Column::Id.is_in(post_ids))
                 .filter(Column::PostStatus.eq("publish"));
+
+            if let Some(search_term) = search {
+                query = query.filter(
+                    Condition::any()
+                        .add(Column::PostTitle.contains(&search_term))
+                        .add(Column::PostContent.contains(&search_term)),
+                );
+            }
 
             let total = query.clone().count(db).await?;
 

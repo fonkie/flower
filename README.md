@@ -13,6 +13,7 @@ A RESTful API for querying WordPress content, built with Rust, Actix Web 4.0, an
 - OpenAPI-compatible design
 - High performance with asynchronous execution
 - Dynamic version information pulled directly from Cargo.toml
+- Support for international characters in search queries
 
 ## Prerequisites
 
@@ -86,7 +87,7 @@ curl -X GET "http://localhost:10086/api/v1/posts/1" -H "accept: application/json
 
 Search posts containing "干细胞" (stem cell):
 ```bash
-curl -X GET "http://localhost:10086/api/v1/posts?search=干细胞" -H "accept: application/json"
+curl -X GET "http://localhost:10086/api/v1/posts?search=%E5%B9%B2%E7%BB%86%E8%83%9E" -H "accept: application/json"
 ```
 
 ### Post Types
@@ -161,12 +162,68 @@ curl -X GET "http://localhost:10086/api/v1/post-types/products/posts?page_size=1
 
 To search for news articles containing "干细胞" (stem cell):
 ```bash
-curl -X GET "http://localhost:10086/api/v1/post-types/news/posts?search=干细胞" -H "accept: application/json"
+curl -X GET "http://localhost:10086/api/v1/post-types/news/posts?search=%E5%B9%B2%E7%BB%86%E8%83%9E" -H "accept: application/json"
 ```
 
 To get customer testimonials for a better display on the website:
 ```bash
 curl -X GET "http://localhost:10086/api/v1/post-types/customer/posts" -H "accept: application/json"
+```
+
+## International Character Support
+
+The Flower API fully supports non-ASCII characters in search queries, including Chinese characters. When using characters outside the standard ASCII set in URLs (like in search parameters), they must be properly URL-encoded to comply with HTTP standards.
+
+### URL Encoding for Non-ASCII Characters
+
+When searching for terms with non-ASCII characters, you must URL encode those characters. For example, the Chinese term "干细胞" (stem cell) should be encoded as "%E5%B9%B2%E7%BB%86%E8%83%9E" in a URL.
+
+You can use built-in URL encoding functions in your programming language:
+
+**Bash:**
+```bash
+# URL encode function for bash
+urlencode() {
+  local string="$1"
+  local length="${#string}"
+  local encoded=""
+  local pos c o
+  
+  for (( pos=0; pos<length; pos++ )); do
+    c="${string:$pos:1}"
+    case "$c" in
+      [-_.~a-zA-Z0-9]) # RFC 3986 unreserved characters
+        encoded+="$c"
+        ;;
+      *)
+        printf -v o '%%%02X' "'$c"
+        encoded+="$o"
+        ;;
+    esac
+  done
+  echo "${encoded}"
+}
+
+# Example usage
+SEARCH_TERM="干细胞"
+ENCODED_TERM=$(urlencode "$SEARCH_TERM")
+curl -X GET "http://localhost:10086/api/v1/posts?search=${ENCODED_TERM}" -H "accept: application/json"
+```
+
+**Python:**
+```python
+import urllib.parse
+
+search_term = "干细胞"
+encoded_term = urllib.parse.quote(search_term)
+# encoded_term will be '%E5%B9%B2%E7%BB%86%E8%83%9E'
+```
+
+**JavaScript:**
+```javascript
+const searchTerm = "干细胞";
+const encodedTerm = encodeURIComponent(searchTerm);
+// encodedTerm will be '%E5%B9%B2%E7%BB%86%E8%83%9E'
 ```
 
 ## Version Management
@@ -231,6 +288,7 @@ Parameters:
 - `page`: Page number (default: 1)
 - `page_size`: Items per page (default: 10, max: 100)
 - `post_status`: Filter by post status (default: publish)
+- `search`: Search in post title and content
 
 ### Categories
 
@@ -249,6 +307,7 @@ GET /api/v1/categories/{category_id}/posts
 Parameters:
 - `page`: Page number (default: 1)
 - `page_size`: Items per page (default: 10, max: 100)
+- `search`: Search in post title and content
 
 ## Response Format
 

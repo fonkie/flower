@@ -7,7 +7,7 @@ pub struct Model {
     #[sea_orm(primary_key, column_name = "object_id")]
     pub object_id: u64,
     #[sea_orm(primary_key)]
-    pub term_taxonomy_id: i32,
+    pub term_taxonomy_id: u64,
     pub term_order: i32,
 }
 

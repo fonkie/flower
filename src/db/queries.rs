@@ -25,7 +25,7 @@ pub async fn get_posts(
     }
 
     if let Some(search_term) = &search {
-        if search_term.len() < 3 {
+        if search_term.chars().count() < 3 {
             return Err(ApiError::BadRequest(
                 "Search term must be at least 3 characters long".to_string(),
             ));
@@ -101,6 +101,7 @@ pub async fn get_posts_by_type(
     post_status: Option<&str>,
     page: u64,
     page_size: u64,
+    search: Option<String>,
 ) -> Result<(Vec<post::Model>, u64), ApiError> {
     if post_type.is_empty() {
         return Err(ApiError::BadRequest(
@@ -126,18 +127,23 @@ pub async fn get_posts_by_type(
         ));
     }
 
-    let (posts, total) =
-        match post::Entity::find_by_type(db, post_type, post_status, page, page_size).await {
-            Ok(result) => result,
-            Err(err) => {
-                return Err(ApiError::InternalServerError(format!(
-                    "Failed to retrieve posts of type '{}': {}",
-                    post_type, err
-                )));
-            }
-        };
+    if let Some(search_term) = &search {
+        if search_term.chars().count() < 3 {
+            return Err(ApiError::BadRequest(
+                "Search term must be at least 3 characters long".to_string(),
+            ));
+        }
+    }
 
-    Ok((posts, total))
+    match post::Entity::find_by_type(db, post_type, post_status, page, page_size, search).await {
+        Ok(result) => Ok(result),
+        Err(err) => {
+            return Err(ApiError::InternalServerError(format!(
+                "Failed to retrieve posts of type '{}': {}",
+                post_type, err
+            )));
+        }
+    }
 }
 
 pub async fn get_post_types(db: &DatabaseConnection) -> Result<Vec<(String, i64, i64)>, ApiError> {
@@ -155,6 +161,7 @@ pub async fn get_posts_by_category(
     category_id: i32,
     page: u64,
     page_size: u64,
+    search: Option<String>,
 ) -> Result<(Vec<post::Model>, u64), ApiError> {
     if category_id <= 0 {
         return Err(ApiError::BadRequest(
@@ -180,7 +187,15 @@ pub async fn get_posts_by_category(
         ));
     }
 
-    match post::Entity::find_by_category(db, category_id, page, page_size).await {
+    if let Some(search_term) = &search {
+        if search_term.chars().count() < 3 {
+            return Err(ApiError::BadRequest(
+                "Search term must be at least 3 characters long".to_string(),
+            ));
+        }
+    }
+
+    match post::Entity::find_by_category(db, category_id, page, page_size, search).await {
         Ok(result) => Ok(result),
         Err(err) => Err(ApiError::InternalServerError(format!(
             "Failed to retrieve posts for category ID {}: {}",

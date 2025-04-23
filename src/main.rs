@@ -49,6 +49,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let cors = Cors::default()
+            .allow_any_origin()
             .allow_any_method()
             .allow_any_header()
             .max_age(3600);
@@ -56,6 +57,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(middleware::Logger::default())
             .wrap(cors)
+            .app_data(web::QueryConfig::default().error_handler(|err, _| {
+                let error_message = format!("Query parsing error: {}", err);
+                error!("{}", error_message);
+                actix_web::error::ErrorBadRequest(error_message)
+            }))
             .app_data(web::Data::new(db_conn.clone()))
             .configure(routes::configure)
     })

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "wp_terms")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub term_id: i32,
+    pub term_id: u64,
     pub name: String,
     pub slug: String,
     pub term_group: i32,

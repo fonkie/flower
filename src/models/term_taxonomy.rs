@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "wp_term_taxonomy")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub term_taxonomy_id: i32,
-    pub term_id: i32,
+    pub term_taxonomy_id: u64,
+    pub term_id: u64,
     pub taxonomy: String,
     pub description: String,
-    pub parent: i32,
+    pub parent: u64,
     pub count: i32,
 }
 
@@ -45,16 +45,18 @@ impl Entity {
         page: u64,
         page_size: u64,
     ) -> Result<(Vec<(Model, super::term::Model)>, u64), DbErr> {
-        let query = Self::find()
+        let taxonomies = Self::find()
             .filter(Column::Taxonomy.eq("category"))
-            .find_with_related(super::term::Entity)
             .all(db)
             .await?;
 
         let mut results = Vec::new();
-        for (taxonomy, terms) in query {
-            if let Some(term) = terms.first() {
-                results.push((taxonomy, term.clone()));
+        for taxonomy in taxonomies {
+            if let Some(term) = super::term::Entity::find_by_id(taxonomy.term_id)
+                .one(db)
+                .await?
+            {
+                results.push((taxonomy, term));
             }
         }
 
