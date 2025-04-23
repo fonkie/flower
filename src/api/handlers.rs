@@ -20,7 +20,39 @@ pub async fn get_posts(
     query: web::Query<GetPostsQuery>,
     db: web::Data<Arc<DatabaseConnection>>,
 ) -> Result<HttpResponse, ApiError> {
+    // Validate page and page_size parameters
+    if let Some(page) = query.page {
+        if page == 0 {
+            return Err(ApiError::BadRequest("Page number must be greater than 0".to_string()));
+        }
+    }
+
+    if let Some(page_size) = query.page_size {
+        if page_size == 0 {
+            return Err(ApiError::BadRequest("Page size must be greater than 0".to_string()));
+        }
+        if page_size > 100 {
+            return Err(ApiError::BadRequest("Maximum page size is 100".to_string()));
+        }
+    }
+
+    // Validate post_type if provided
+    if let Some(post_type) = &query.post_type {
+        if post_type.is_empty() {
+            return Err(ApiError::BadRequest("Post type cannot be empty".to_string()));
+        }
+    }
+
     let post_status = if let Some(status) = &query.post_status {
+        // Validate post_status
+        let valid_statuses = ["publish", "draft", "private", "pending", "future", "trash", "auto-draft"];
+        if !valid_statuses.contains(&status.as_str()) {
+            return Err(ApiError::BadRequest(format!(
+                "Invalid post status: {}. Valid statuses are: {}",
+                status,
+                valid_statuses.join(", ")
+            )));
+        }
         Some(status.to_string())
     } else {
         Some("publish".to_string())
@@ -55,6 +87,11 @@ pub async fn get_post(
     db: web::Data<Arc<DatabaseConnection>>,
 ) -> Result<HttpResponse, ApiError> {
     let post_id = path.into_inner();
+    
+    // Validate post_id
+    if post_id <= 0 {
+        return Err(ApiError::BadRequest("Post ID must be a positive integer".to_string()));
+    }
 
     let post = queries::get_post_by_id(&db, post_id, true).await?;
 
@@ -68,8 +105,19 @@ pub async fn get_post_meta(
     db: web::Data<Arc<DatabaseConnection>>,
 ) -> Result<HttpResponse, ApiError> {
     let post_id = path.into_inner();
+    
+    // Validate post_id
+    if post_id <= 0 {
+        return Err(ApiError::BadRequest("Post ID must be a positive integer".to_string()));
+    }
 
     let meta = queries::get_post_meta(&db, post_id).await?;
+
+    // Check if we got empty metadata
+    if meta.is_empty() {
+        // Note: We don't consider empty metadata an error, but we could if the business logic required it
+        // return Err(ApiError::NotFound(format!("No metadata found for post {}", post_id)));
+    }
 
     let response = PostMeta { meta };
 
@@ -99,7 +147,43 @@ pub async fn get_posts_by_type(
     db: web::Data<Arc<DatabaseConnection>>,
 ) -> Result<HttpResponse, ApiError> {
     let post_type = path.into_inner();
-    let post_status = query.post_status.as_deref();
+    
+    // Validate post_type
+    if post_type.is_empty() {
+        return Err(ApiError::BadRequest("Post type cannot be empty".to_string()));
+    }
+
+    // Validate pagination parameters
+    if let Some(page) = query.page {
+        if page == 0 {
+            return Err(ApiError::BadRequest("Page number must be greater than 0".to_string()));
+        }
+    }
+
+    if let Some(page_size) = query.page_size {
+        if page_size == 0 {
+            return Err(ApiError::BadRequest("Page size must be greater than 0".to_string()));
+        }
+        if page_size > 100 {
+            return Err(ApiError::BadRequest("Maximum page size is 100".to_string()));
+        }
+    }
+
+    // Validate post_status if provided
+    let post_status = if let Some(status) = &query.post_status {
+        let valid_statuses = ["publish", "draft", "private", "pending", "future", "trash", "auto-draft"];
+        if !valid_statuses.contains(&status.as_str()) {
+            return Err(ApiError::BadRequest(format!(
+                "Invalid post status: {}. Valid statuses are: {}",
+                status,
+                valid_statuses.join(", ")
+            )));
+        }
+        Some(status.as_str())
+    } else {
+        None
+    };
+
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(10).min(100);
 
@@ -117,6 +201,22 @@ pub async fn get_categories(
     query: web::Query<GetCategoriesQuery>,
     db: web::Data<Arc<DatabaseConnection>>,
 ) -> Result<HttpResponse, ApiError> {
+    // Validate pagination parameters
+    if let Some(page) = query.page {
+        if page == 0 {
+            return Err(ApiError::BadRequest("Page number must be greater than 0".to_string()));
+        }
+    }
+
+    if let Some(page_size) = query.page_size {
+        if page_size == 0 {
+            return Err(ApiError::BadRequest("Page size must be greater than 0".to_string()));
+        }
+        if page_size > 100 {
+            return Err(ApiError::BadRequest("Maximum page size is 100".to_string()));
+        }
+    }
+
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(20).min(100);
 
@@ -135,6 +235,28 @@ pub async fn get_posts_by_category(
     db: web::Data<Arc<DatabaseConnection>>,
 ) -> Result<HttpResponse, ApiError> {
     let category_id = path.into_inner();
+    
+    // Validate category_id
+    if category_id <= 0 {
+        return Err(ApiError::BadRequest("Category ID must be a positive integer".to_string()));
+    }
+
+    // Validate pagination parameters
+    if let Some(page) = query.page {
+        if page == 0 {
+            return Err(ApiError::BadRequest("Page number must be greater than 0".to_string()));
+        }
+    }
+
+    if let Some(page_size) = query.page_size {
+        if page_size == 0 {
+            return Err(ApiError::BadRequest("Page size must be greater than 0".to_string()));
+        }
+        if page_size > 100 {
+            return Err(ApiError::BadRequest("Maximum page size is 100".to_string()));
+        }
+    }
+
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(10).min(100);
 

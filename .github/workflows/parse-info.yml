@@ -1,0 +1,35 @@
+name: parse-info
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        default: 'Cargo.toml'
+        required: true
+        type: string
+    outputs:
+      version:
+        description: "Parsed cargo version for rust project"
+        value: ${{ jobs.parse.outputs.version }}
+      name:
+        description: "Parsed cargo binary name for rust project"
+        value: ${{ jobs.parse.outputs.name }}
+
+jobs:
+  parse:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.regex.outputs.version }}
+      name: ${{ steps.regex.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: regex
+        run: |
+          version=$(sed -n '0,/version = "\(.*\)"/s//\1/p' $CARGO)
+          name=$(sed -n '0,/name = "\(.*\)"/s//\1/p' $CARGO)
+          echo version=$version >> $GITHUB_OUTPUT
+          echo name=$name >> $GITHUB_OUTPUT
+        name: Parse Cargo.toml
+        shell: bash
+        env:
+          CARGO: ${{ inputs.path }}

@@ -1,0 +1,33 @@
+name: ci
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CARGO_TERM_COLOR: always
+  CARGO: "Cargo.toml"
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "master"
+    paths:
+      - ".github/workflows/ci.yml"
+      - "Cargo.toml"
+
+jobs:
+  pre:
+    runs-on: ubuntu-latest
+    outputs:
+      path: ${{ env.CARGO }}
+    steps:
+      - run: echo "Bypass GitHub Action Restriction"
+  release:
+    needs:
+      - pre
+    uses: ./.github/workflows/release.yml
+    with:
+      path: ${{ needs.pre.outputs.path }}
+    secrets: inherit

@@ -1,0 +1,60 @@
+name: docker
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  actions: write
+  checks: write 
+  pull-requests: write
+  contents: read
+  packages: write
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+  push:
+    branches:
+      - "master"
+    paths:
+      - ".github/workflows/docker.yml"
+      - "docker/entrypoint.sh"
+      - "docker/Dockerfile"
+
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Convert tags to lowercase
+        run: |
+          ghcr_tag="ghcr.io/${{ github.repository }}"
+          repository="${{ github.repository }}"
+          repo_name="${repository#*/}"
+          echo "ghcr_tag=${ghcr_tag,,}" >> $GITHUB_ENV
+          echo "repo_name=${repo_name,,}" >> $GITHUB_ENV
+      - uses: docker/build-push-action@v6
+        with:
+          context: "{{defaultContext}}:docker"
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64, linux/arm64, linux/ppc64le
+          tags: ${{ env.ghcr_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            GITHUB_REPOSITORY=${{ github.repository }}
+            GITHUB_NAME=${{ env.repo_name }}

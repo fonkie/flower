@@ -30,6 +30,20 @@ impl From<DbErr> for ApiError {
     }
 }
 
+// Add a conversion from std::io::Error to ApiError
+impl From<std::io::Error> for ApiError {
+    fn from(err: std::io::Error) -> ApiError {
+        ApiError::InternalServerError(format!("IO operation failed: {}", err))
+    }
+}
+
+// Add a conversion from anyhow::Error to ApiError
+impl From<anyhow::Error> for ApiError {
+    fn from(err: anyhow::Error) -> ApiError {
+        ApiError::InternalServerError(format!("Unexpected error: {}", err))
+    }
+}
+
 #[derive(Serialize)]
 struct ErrorResponse {
     detail: String,

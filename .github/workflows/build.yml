@@ -1,0 +1,66 @@
+name: build
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CARGO_TERM_COLOR: always
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        default: 'Cargo.toml'
+        required: true
+        type: string
+      target:
+        default: 'x86_64-unknown-linux-gnu'
+        required: true
+        type: string
+      platform:
+        default: 'ubuntu-latest'
+        required: true
+        type: string
+
+jobs:
+  ready:
+    uses: ./.github/workflows/parse-info.yml
+    with:
+      path: ${{ inputs.path }}
+
+  cross-build:
+    name: publish - ${{ inputs.target }}
+    runs-on: ${{ inputs.platform }}
+    needs:
+      - ready
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Set LTO to true (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $fileContent = Get-Content ./Cargo.toml
+          $fileContent = $fileContent -replace 'lto = false', 'lto = true'
+          Set-Content ./Cargo.toml $fileContent
+      - name: Set LTO to true (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: perl -pi -e 's/lto = false/lto = true/g' ./Cargo.toml
+      - uses: taiki-e/github-actions/install-rust@main
+        with:
+          toolchain: nightly
+      - name: Install cross-compilation tools
+        uses: taiki-e/setup-cross-toolchain-action@v1.29.1
+        with:
+          target: ${{ inputs.target }}
+        if: contains(inputs.target, 'linux-musl')
+      - run: echo "RUSTFLAGS=${RUSTFLAGS} -C target-feature=+crt-static" >> "${GITHUB_ENV}"
+        if: endsWith(inputs.target, 'windows-msvc')
+      - uses: taiki-e/upload-rust-binary-action@v1.24.0
+        with:
+          bin: ${{ needs.ready.outputs.name }}
+          target: ${{ inputs.target }}
+          ref: refs/tags/${{ needs.ready.outputs.version }}
+          tar: all
+          zip: windows
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+          CARGO_PROFILE_RELEASE_LTO: true

@@ -1,0 +1,69 @@
+name: docker-psql
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  actions: write
+  checks: write 
+  pull-requests: write
+  contents: read
+  packages: write
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 */6 * *'
+  push:
+    branches:
+      - "master"
+    paths:
+      - ".github/workflows/docker-psql.yml"
+      - "docker/psql/entrypoint.sh"
+      - "docker/psql/BASE"
+      - "docker/psql/Dockerfile"
+
+jobs:
+  build-psql:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Convert tags to lowercase
+        run: |
+          ghcr_tag="ghcr.io/${{ github.repository }}"
+          echo "ghcr_tag=${ghcr_tag,,}" >> $GITHUB_ENV
+      - uses: docker/build-push-action@v6
+        with:
+          context: "{{defaultContext}}:docker/psql"
+          file: BASE
+          push: true
+          platforms: linux/amd64, linux/arm64, linux/ppc64le
+          tags: ${{ env.ghcr_tag }}-psql:base
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: docker/build-push-action@v6
+        with:
+          context: "{{defaultContext}}:docker/psql"
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64, linux/arm64, linux/ppc64le
+          tags: ${{ env.ghcr_tag }}-psql:latest
