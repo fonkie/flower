@@ -1,0 +1,76 @@
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "wp_term_taxonomy")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub term_taxonomy_id: i32,
+    pub term_id: i32,
+    pub taxonomy: String,
+    pub description: String,
+    pub parent: i32,
+    pub count: i32,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::term::Entity",
+        from = "Column::TermId",
+        to = "super::term::Column::TermId"
+    )]
+    Term,
+    #[sea_orm(has_many = "super::term_relationship::Entity")]
+    TermRelationships,
+}
+
+impl Related<super::term::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Term.def()
+    }
+}
+
+impl Related<super::term_relationship::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TermRelationships.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}
+
+// Additional query methods
+impl Entity {
+    // Get categories with pagination
+    pub async fn find_categories(
+        db: &DatabaseConnection,
+        page: u64,
+        page_size: u64,
+    ) -> Result<(Vec<(Model, super::term::Model)>, u64), DbErr> {
+        let query = Self::find()
+            .filter(Column::Taxonomy.eq("category"))
+            .find_with_related(super::term::Entity)
+            .all(db)
+            .await?;
+        
+        // Extract and flatten results
+        let mut results = Vec::new();
+        for (taxonomy, terms) in query {
+            if let Some(term) = terms.first() {
+                results.push((taxonomy, term.clone()));
+            }
+        }
+        
+        // Apply pagination manually
+        let total = results.len() as u64;
+        let start = (page - 1) * page_size;
+        let end = std::cmp::min(start + page_size, total);
+        
+        if start < total {
+            let paginated_results = results.into_iter().skip(start as usize).take((end - start) as usize).collect();
+            Ok((paginated_results, total))
+        } else {
+            Ok((Vec::new(), total))
+        }
+    }
+}
