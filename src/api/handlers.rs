@@ -8,14 +8,13 @@ use crate::error::ApiError;
 
 pub async fn root() -> impl Responder {
     let response = RootResponse {
-        title: "WordPress Query API".to_string(),
-        version: "1.0.0".to_string(),
+        title: env!("CARGO_PKG_NAME").to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
         description: "Read-only RESTful API for WordPress data".to_string(),
     };
-
+    
     HttpResponse::Ok().json(response)
 }
-
 pub async fn get_posts(
     query: web::Query<GetPostsQuery>,
     db: web::Data<Arc<DatabaseConnection>>,
