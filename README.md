@@ -14,12 +14,14 @@ A RESTful API for querying WordPress content, built with Rust, Actix Web 4.0, an
 - High performance with asynchronous execution
 - Dynamic version information pulled directly from Cargo.toml
 - Support for international characters in search queries
+- Public access through Nginx proxy integration
 
 ## Prerequisites
 
 - Rust 1.60 or higher
 - MySQL database with WordPress schema
 - Docker (optional, for containerized deployment)
+- Nginx (optional, for public access configuration)
 
 ## Quick Start
 
@@ -61,114 +63,205 @@ docker-compose up -d
 curl -X GET "http://localhost:10086/" -H "accept: application/json"
 ```
 
+## Deployment Options
+
+### Local Development Access
+
+For local development, the API is accessible at `http://localhost:10086` once the service is running.
+
+### Public Access via Nginx
+
+For production environments, the Flower API can be accessed through a domain name with Nginx as a reverse proxy. This provides several benefits:
+
+- Secure access through SSL/TLS certificates
+- Integration with existing websites
+- Standard API URL patterns
+- Improved security by hiding internal services
+
+With our configured setup, the API is accessible at:
+```
+https://sanyuan.xn--bww30p.com/api/
+```
+
+The Nginx configuration proxies all requests from `/api/` to the internal Flower service running on port 10086. This allows you to access all API endpoints through the main website domain.
+
 ## API Usage Examples
+
+The examples below show both local development and public access URLs.
 
 ### Basic Information
 Get API information:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api" -H "accept: application/json"
 ```
 
 ### Posts
 Get all published posts (with default pagination):
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/posts" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/posts" -H "accept: application/json"
 ```
 
 Get posts with pagination:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/posts?page=2&page_size=5" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/posts?page=2&page_size=5" -H "accept: application/json"
 ```
 
 Get a specific post:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/posts/1" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/posts/1" -H "accept: application/json"
 ```
 
 Search posts containing "干细胞" (stem cell):
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/posts?search=%E5%B9%B2%E7%BB%86%E8%83%9E" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/posts?search=%E5%B9%B2%E7%BB%86%E8%83%9E" -H "accept: application/json"
 ```
 
 ### Post Types
 Get all post types:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/post-types" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/post-types" -H "accept: application/json"
 ```
 
 Get all pages:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/post-types/page/posts" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/post-types/page/posts" -H "accept: application/json"
 ```
 
 Get all products:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/post-types/products/posts" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/post-types/products/posts" -H "accept: application/json"
 ```
 
 Get all news articles:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/post-types/news/posts" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/post-types/news/posts" -H "accept: application/json"
 ```
 
 Get all customer testimonials:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/post-types/customer/posts" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/post-types/customer/posts" -H "accept: application/json"
 ```
 
 ### Post Metadata
 Get metadata for a post:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/posts/1/meta" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/posts/1/meta" -H "accept: application/json"
 ```
 
 ### Categories
 Get all categories:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/categories" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/categories" -H "accept: application/json"
 ```
 
 Get posts in a specific category:
 ```bash
+# Local development
 curl -X GET "http://localhost:10086/api/v1/categories/2/posts" -H "accept: application/json"
+
+# Public access
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/categories/2/posts" -H "accept: application/json"
 ```
 
-### Advanced Queries
-Get draft posts:
-```bash
-curl -X GET "http://localhost:10086/api/v1/posts?post_status=draft" -H "accept: application/json"
+## Nginx Configuration for Public Access
+
+Below is the Nginx configuration that enables public access to the Flower API:
+
+```nginx
+# Flower API proxy - Location block for the API
+location /api/ {
+    proxy_pass http://127.0.0.1:10086/api/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_read_timeout 90s;
+    client_max_body_size 10m;
+    
+    # Add CORS headers for API requests
+    add_header 'Access-Control-Allow-Origin' '*' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+    
+    # Handle preflight requests
+    if ($request_method = 'OPTIONS') {
+        add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization';
+        add_header 'Access-Control-Max-Age' 1728000;
+        add_header 'Content-Type' 'text/plain; charset=utf-8';
+        add_header 'Content-Length' 0;
+        return 204;
+    }
+}
+
+# Root API info endpoint
+location = /api {
+    proxy_pass http://127.0.0.1:10086/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
 ```
 
-Get posts by a specific author:
-```bash
-curl -X GET "http://localhost:10086/api/v1/posts?author_id=1" -H "accept: application/json"
-```
+This configuration should be added to your website's server block in the Nginx configuration. It handles:
 
-Get posts with multiple filters:
-```bash
-curl -X GET "http://localhost:10086/api/v1/posts?post_type=post&post_status=publish&author_id=1&search=wordpress" -H "accept: application/json"
-```
-
-### Usage with the Sanyuan Website Data
-To view the "走进三源长生" (About Sanyuan) page:
-```bash
-curl -X GET "http://localhost:10086/api/v1/posts/11" -H "accept: application/json"
-```
-
-To get all products from the Sanyuan website:
-```bash
-curl -X GET "http://localhost:10086/api/v1/post-types/products/posts?page_size=100" -H "accept: application/json"
-```
-
-To search for news articles containing "干细胞" (stem cell):
-```bash
-curl -X GET "http://localhost:10086/api/v1/post-types/news/posts?search=%E5%B9%B2%E7%BB%86%E8%83%9E" -H "accept: application/json"
-```
-
-To get customer testimonials for a better display on the website:
-```bash
-curl -X GET "http://localhost:10086/api/v1/post-types/customer/posts" -H "accept: application/json"
-```
+1. Proxying all `/api/` requests to the Flower API
+2. Setting up proper headers for CORS support
+3. Handling OPTIONS preflight requests for cross-origin requests
+4. Converting the root API endpoint (`/api`) to the Flower API's root endpoint (`/`)
 
 ## International Character Support
 
@@ -207,7 +300,7 @@ urlencode() {
 # Example usage
 SEARCH_TERM="干细胞"
 ENCODED_TERM=$(urlencode "$SEARCH_TERM")
-curl -X GET "http://localhost:10086/api/v1/posts?search=${ENCODED_TERM}" -H "accept: application/json"
+curl -X GET "https://sanyuan.xn--bww30p.com/api/v1/posts?search=${ENCODED_TERM}" -H "accept: application/json"
 ```
 
 **Python:**
@@ -375,6 +468,7 @@ flower/
 - Queries are designed to be efficient and leverage indexes
 - Pagination is implemented to limit result sizes and improve performance
 - Asynchronous operations keep the server responsive under load
+- Nginx reverse proxy provides additional caching and performance benefits
 
 ## License
 
