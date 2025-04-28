@@ -53,7 +53,7 @@ jobs:
         if: contains(inputs.target, 'linux-musl')
       - run: echo "RUSTFLAGS=${RUSTFLAGS} -C target-feature=+crt-static" >> "${GITHUB_ENV}"
         if: endsWith(inputs.target, 'windows-msvc')
-      - uses: taiki-e/upload-rust-binary-action@v1.24.0
+      - uses: taiki-e/upload-rust-binary-action@v1.25.0
         with:
           bin: ${{ needs.ready.outputs.name }}
           target: ${{ inputs.target }}
