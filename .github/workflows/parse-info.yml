@@ -22,7 +22,7 @@ jobs:
       version: ${{ steps.regex.outputs.version }}
       name: ${{ steps.regex.outputs.name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: regex
         run: |
           version=$(sed -n '0,/version = "\(.*\)"/s//\1/p' $CARGO)
